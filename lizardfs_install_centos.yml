@@ -1,0 +1,101 @@
+---
+- hosts: all
+  tasks:
+  - name: Add Lizard repo Centos 6
+    yum_repository:
+    name: lizardfs-rhel6.repo
+    description: LizardFS YUM repo
+    baseurl: http://packages.lizardfs.com/yum/centos6/
+#   gpgkey: gpgkey=http://
+    gpgcheck: no
+    when: ansible_distribution == "CentOS" and ansible_distribution_major_version == '6'
+
+  - name: Add Lizard repo Centos 7
+    yum_repository:
+    name: lizardfs-rhel7.repo
+    description: LizardFS YUM repo
+    baseurl: http://packages.lizardfs.com/yum/centos7/
+#    gpgkey: gpgkey=http://
+    gpgcheck: no
+    when: ansible_distribution == "CentOS" and ansible_distribution_major_version == '7'
+
+  - name: upgrade all packages, excluding kernel & foo related packages
+    yum:
+    name: '*'
+    state: latest
+    exclude: kernel*
+
+
+- hosts: master
+  tasks:
+  - name: Install master 
+    yum:
+        name: lizardfs-master 
+        state: present
+
+  - name: Install admin tools
+    yum:
+        name:  lizardfs-adm
+        state: present
+
+  - name: Lizardfs client 
+    yum: 
+        name: lizardfs-client
+        state: latest
+
+  - name: enable master service
+    service:
+        name: lizardfs-master
+        enabled: yes
+
+- hosts: manager
+  tasks:
+  - name: Install cgi
+    yum:
+        name:  lizardfs-cgi
+        state: present
+
+  - name: Install cgi
+    yum:
+        name:  lizardfs-cgiserv
+        state: present
+
+  - name: Install admin tools
+    yum:
+        name:  lizardfs-adm
+        state: present
+
+  - name: Lizardfs client 
+    yum: 
+        name: lizardfs-client
+        state: latest
+
+  - name: enable cgi server service
+    service:
+        name: lizardfs-cgiserv
+        enabled: yes
+
+- hosts: chunk
+  tasks:
+  - name: Install chunks
+    yum:
+        name: lizardfs-chunkserver
+        state: present
+
+  - name: enable chunk server service
+    service:
+        name: lizardfs-chunkserver
+        enabled: yes
+
+- hosts: metalogger
+  tasks:
+  - name: Install metalogger, advised to be on chunkservers 
+    yum:
+        name:  lizardfs-metalogger
+        state: present
+
+  - name: enable metalogger server service
+    service:
+        name: lizardfs-metalogger
+        enabled: yes
+
