@@ -1,0 +1,116 @@
+---
+- hosts: all
+  vars:
+      sourcesList: /etc/apt/sources.list.d/lizardfs.list
+
+  tasks:
+  - name: Remove previously added repo file,
+    file: 
+        path: "{{ sourcesList }}"
+        state: absent
+
+  - name: Configure resolv.conf
+    lineinfile: dest=/etc/resolv.conf line='nameserver <nameserver IP>'
+
+  - name: Add Lizardfs key
+    apt_key:
+           url: http://packages.lizardfs.com/lizardfs.key
+           state: present
+
+  - name: Install lsb-release
+    apt:
+           name: lsb-release 
+           state: present
+
+  - name: Add Lizard Repo
+    shell: echo "deb http://packages.lizardfs.com/debian/$(lsb_release -sc) $(lsb_release -sc) main" > "{{ sourcesList }}"
+    
+  - name: Add Lizard src Repo
+    shell: echo "deb-src http://packages.lizardfs.com/debian/$(lsb_release -sc) $(lsb_release -sc) main" >> "{{ sourcesList }}"
+
+  - name: Run the equivalent of "apt-get update" as a separate step
+    apt:
+        update_cache: yes
+
+  - name: Update all packages to the latest version
+    apt:
+        upgrade: dist
+
+  - name: Install lizardfs-common
+    apt:
+        name: lizardfs-common
+        state: present
+
+- hosts: master
+  tasks:
+  - name: Install master 
+    apt:
+        name: lizardfs-master 
+        state: present
+
+  - name: Install administration tools
+    apt:
+        name:  lizardfs-adm
+        state: present
+
+  - name: liz client 
+    apt: 
+        name: lizardfs-client
+        state: latest
+
+  - name: enable master service
+    shell: systemctl enable lizardfs-master
+
+- hosts: manager
+  tasks:
+  - name: Install administration cgi
+    apt:
+        name:  lizardfs-cgi
+        state: present
+
+  - name: Install cgi server
+    apt:
+        name:  lizardfs-cgiserv
+        state: present
+
+  - name: Install administration tools
+    apt:
+        name:  lizardfs-adm
+        state: present
+
+  - name: liz client 
+    apt: 
+        name: lizardfs-client
+        state: latest
+
+  - name: enable cgi server service
+    shell: systemctl enable lizardfs-cgiserv
+
+- hosts: chunk
+  tasks:
+  - name: liz chunk 
+    apt: 
+        name: lizardfs-chunkserver
+        state: latest
+
+  - name: enable chunk server service
+    shell: systemctl enable lizardfs-chunkserver
+
+- hosts: metalogger
+  tasks:
+  - name: Install metalogger
+    apt:
+        name:  lizardfs-metalogger
+        state: present
+
+  - name: enable metalogger server service
+    shell: systemctl enable lizardfs-metalogger
+
+  # This is just in case XFS support
+  - name: XFS tools, just in case ;) 
+    apt: 
+        name: xfsprogs
+        state: latest
+
+
+
