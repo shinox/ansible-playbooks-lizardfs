@@ -1,0 +1,176 @@
+---
+  #
+  ## All hosts file Configuration
+  #
+- hosts: all
+  vars:
+    ipaddr:  
+        - - "10.0.255.1 mfsmaster"
+          - "10.0.255.1 cgiserver"
+          - "10.0.255.1 metalogger"
+          - "10.0.255.1 chunkserver1"
+          - "10.0.255.100 chunkserver2"
+          - "10.0.255.105 chunkserver3"
+
+  tasks:
+  - name: Add Master Hosts entry for internal traffic
+    lineinfile:
+        dest:        /etc/hosts
+        regexp:      "^{{ item }}"
+        line:        "{{ item }}"
+        owner:       root
+        state:       present
+        create:      False
+    with_items: "{{ ipaddr }}"      
+
+  #
+  ## Master Server Configuration
+  #
+- hosts: master
+  vars:
+    network_Tp0: 10.0.255.0/24
+    masterHome:  /var/lib/mfs
+    masterEtc:   /etc/mfs
+    goalscfg:
+        - - "17 default_ec : $ec(5,2)                     # erasure code with 5 data parts and 2 parity parts"
+
+  tasks:  
+  - name: Copy empty Metadata file
+    shell: "cp {{ masterHome }}/metadata.mfs.empty {{ masterHome }}/metadata.mfs"
+
+  - name: Configure Master
+    shell: sed -i.bak 's/LIZARDFSMASTER_ENABLE=false/LIZARDFSMASTER_ENABLE=true/g' /etc/default/lizardfs-master
+
+  - name: copy dist config
+    shell: "cp {{ masterEtc }}/mfsmaster.cfg.dist {{ masterEtc }}/mfsmaster.cfg"
+
+  - name: Add Master config entry
+    lineinfile:
+        dest:        "{{ masterEtc }}/mfsmaster.cfg"
+        regexp:      "^# PERSONALITY = master"
+        line:        "PERSONALITY = master"
+        owner:       root
+        state:       present
+        create:      False
+
+  - name: Copy exports file
+    shell: "cp {{ masterEtc }}/mfsexports.cfg.dist {{ masterEtc }}/mfsexports.cfg"
+
+  - name: Copy overwrite goals file
+    shell: "cp -aRf {{ masterEtc }}/mfsgoals.cfg.dist {{ masterEtc }}/mfsgoals.cfg"
+
+  - name: Add Master Goals
+    lineinfile:
+        dest:        "{{ masterEtc }}/mfsgoals.cfg"
+        regexp:      "^# {{ item }}"
+        line:        "{{ item }}"
+        owner:       root
+        state:       present
+        create:      True
+    with_items: "{{ goalscfg }}"
+
+  - name: Copy Network Topology file
+    shell: "cp {{ masterEtc }}/mfstopology.cfg.dist {{ masterEtc }}/mfstopology.cfg"
+
+  - name: Add Master Network Topology
+    lineinfile:
+        dest:        "{{ masterEtc }}/mfstopology.cfg"
+        regexp:      "^# 192.168.1.0/24                1"
+        line:        "{{ network_Tp0 }}                0"
+        owner:       root
+        state:       present
+        create:      False
+
+  - name: Start Master Service
+    service: 
+        name:  lizardfs-master
+        state: started
+
+  #
+  ## Metalogger Server Configuration
+  #
+- hosts: metalogger
+  vars:
+    masterEtc: /etc/mfs
+  tasks:  
+  - name: Configure Metalogger
+    shell: sed -i.bak 's/LIZARDFSMETALOGGER_ENABLE=false/LIZARDFSMETALOGGER_ENABLE=true/g' /etc/default/lizardfs-metalogger
+
+  - name: copy dist config
+    shell: "cp {{ masterEtc }}/mfsmetalogger.cfg.dist {{ masterEtc }}/mfsmetalogger.cfg"
+
+  - name: re-Start Metalogger Service
+    service: 
+        name:  lizardfs-metalogger
+        state: restarted
+
+  #
+  ## Manager Server Configuration
+  #
+- hosts: manager
+  vars:
+    masterEtc: /etc/mfs
+  tasks:  
+  - name: Start cgi
+    service: 
+        name:  lizardfs-cgiserv
+        state: started
+
+  #
+  ## Chunk Server Configuration
+  #
+- hosts: chunk
+  vars:
+    masterName: mfsmaster
+    masterEtc: /etc/mfs
+    disksPath: /mnt/disks
+    chunks: 
+        - - chunk1
+          - chunk2
+          - chunk3
+    chunksrvcfg:
+        - - "LABEL = {{ inventory_hostname }}"
+          - "MASTER_HOST = {{ masterName }}"
+          - "HDD_PUNCH_HOLES = 1"
+
+  tasks:  
+  - name: Configure Chunk Server
+    shell: sed -i.bak 's/LIZARDFSCHUNKSERVER_ENABLE=false/LIZARDFSCHUNKSERVER_ENABLE=true/g' /etc/default/lizardfs-chunkserver
+
+  - name: copy chunk dist config
+    shell: "cp {{ masterEtc }}/mfschunkserver.cfg.dist {{ masterEtc }}/mfschunkserver.cfg"
+
+  - name: Add Master Network Topology
+    lineinfile:
+        dest:        "{{ masterEtc }}/mfschunkserver.cfg"
+        regexp:      "^# {{ item }}*"
+        line:        "{{ item }}"
+        owner:       root
+        state:       present
+        create:      False
+    with_items: "{{ chunksrvcfg }}"
+
+  - name: hdd disks config
+    lineinfile:
+        dest:        "{{ masterEtc }}/mfshdd.cfg"
+        regexp:      "^{{ disksPath }}/{{ item }}"
+        line:        "{{ disksPath }}/{{ item }}"
+        owner:       root
+        state:       present
+        create:      True
+    with_items: "{{ chunks }}"
+
+  - file:
+        path:  "{{ disksPath }}/{{ item }}"
+        state: directory
+        owner: mfs
+        group: mfs
+        mode:  0755
+        recurse: yes
+    with_items: "{{ chunks }}"
+
+  - name: Start Chunkserver Service
+    service: 
+        name:  lizardfs-chunkserver
+        state: started
+
