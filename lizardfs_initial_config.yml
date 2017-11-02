@@ -5,7 +5,7 @@
 - hosts: all
   vars:
     ipaddr:  
-        - - "10.0.255.1 mfsmaster"
+        - - "10.0.255.1 store0 masterbee meta0 mfsmaster"
           - "10.0.255.1 cgiserver"
           - "10.0.255.1 metalogger"
           - "10.0.255.1 chunkserver1"
@@ -16,7 +16,7 @@
   - name: Add Master Hosts entry for internal traffic
     lineinfile:
         dest:        /etc/hosts
-        regexp:      "^{{ item }}"
+        regexp:      "^# {{ item }}"
         line:        "{{ item }}"
         owner:       root
         state:       present
@@ -32,7 +32,13 @@
     masterHome:  /var/lib/mfs
     masterEtc:   /etc/mfs
     goalscfg:
-        - - "17 default_ec : $ec(5,2)                     # erasure code with 5 data parts and 2 parity parts"
+        - - "15 default_xor3 : $xor3"
+#        - - "17 default_ec : $ec(5,2)                     # erasure code with 5 data parts and 2 parity parts"
+#        - - "3 3 : _ _ _                                 # one of the default goals (three copies anywhere)"
+#        - - "12 local_copy_on_mars : mars _               # at least one copy in the Martian datacenter"
+#        - - "13 cached_on_ssd : ssd _"
+#        - - "15 default_xor3 : $xor3"
+
 
   tasks:  
   - name: Copy empty Metadata file
@@ -66,7 +72,7 @@
         line:        "{{ item }}"
         owner:       root
         state:       present
-        create:      True
+        create:      False
     with_items: "{{ goalscfg }}"
 
   - name: Copy Network Topology file
@@ -84,7 +90,8 @@
   - name: Start Master Service
     service: 
         name:  lizardfs-master
-        state: started
+        state: reloaded
+
   #
   ## Metalogger Server Configuration
   #
@@ -101,7 +108,7 @@
   - name: re-Start Metalogger Service
     service: 
         name:  lizardfs-metalogger
-        state: restarted
+        state: reloaded
 
   #
   ## Manager Server Configuration
@@ -113,7 +120,7 @@
   - name: Start cgi
     service: 
         name:  lizardfs-cgiserv
-        state: started
+        state: restarted
 
   #
   ## Chunk Server Configuration
@@ -171,5 +178,4 @@
   - name: Start Chunkserver Service
     service: 
         name:  lizardfs-chunkserver
-        state: started
-
+        state: reloaded
