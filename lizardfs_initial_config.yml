@@ -16,7 +16,7 @@
   - name: Add Master Hosts entry for internal traffic
     lineinfile:
         dest:        /etc/hosts
-        regexp:      "^# {{ item }}"
+        regexp:      "^{{ item }}"
         line:        "{{ item }}"
         owner:       root
         state:       present
