@@ -31,6 +31,12 @@
     network_Tp0: 10.0.255.0/24
     masterHome:  /var/lib/mfs
     masterEtc:   /etc/mfs
+    defgoalscfg:
+        - - "1 1 : _"
+          - "2 2 : _ _"
+          - "3 3 : _ _ _"
+          - "4 4 : _ _ _ _"
+          - "5 5 : _ _ _ _ _"
     goalscfg:
         - - "15 default_xor3 : $xor3"
 #        - - "17 default_ec : $ec(5,2)                     # erasure code with 5 data parts and 2 parity parts"
@@ -64,7 +70,17 @@
 
   - name: Copy overwrite goals file
     shell: "cp -aRf {{ masterEtc }}/mfsgoals.cfg.dist {{ masterEtc }}/mfsgoals.cfg"
-
+    
+  - name: Remove Default Goals
+    lineinfile:
+        dest:        "{{ masterEtc }}/mfsgoals.cfg"
+        regexp:      "^{{ item }}"
+        line:        "{{ item }}"
+        owner:       root
+        state:       absent
+        create:      False
+    with_items: "{{ defgoalscfg }}"
+ 
   - name: Add Master Goals
     lineinfile:
         dest:        "{{ masterEtc }}/mfsgoals.cfg"
