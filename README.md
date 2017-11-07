@@ -13,4 +13,6 @@ Initial configuration:
 
  	lizardfs_initial_config.yml 	
  
+Reminder, for xfs mount chunks with:
 
+	sudo mount -o rw,noexec,nodev,noatime,nodiratime,largeio,inode64,barrier=0 /dev/<array> /mnt/disks/chunk1
