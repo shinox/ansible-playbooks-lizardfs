@@ -16,3 +16,7 @@ Initial configuration:
 Reminder, for xfs mount chunks with:
 
 	sudo mount -o rw,noexec,nodev,noatime,nodiratime,largeio,inode64,barrier=0 /dev/<array> /mnt/disks/chunk<n>
+	
+Mount to clients:
+
+	sudo mfsmount -o big_writes,nosuid,nodev,noatime,cacheexpirationtime=500,readaheadmaxwindowsize=4096 /lizardfs
